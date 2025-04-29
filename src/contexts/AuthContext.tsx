@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   UserCredential
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 
 type User = {
@@ -104,13 +104,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userCredential: UserCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Create user document in Firestore
+      // Create comprehensive user document in Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name,
         email,
         subject,
         institute,
-        createdAt: new Date().toISOString()
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        role: "teacher", // Default role for all users in this application
+        status: "active",
+        profileComplete: true
       });
       
       navigate('/dashboard');
