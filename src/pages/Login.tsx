@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Book, Loader2 } from 'lucide-react';
@@ -22,10 +21,10 @@ const Login = () => {
         title: "Login successful",
         description: "Welcome back to TeachExamHub!",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {

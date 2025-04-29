@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -16,13 +16,45 @@ import {
   Settings,
   Loader2
 } from 'lucide-react';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
+
+// Define types for different question types
+type MCQQuestion = {
+  type: 'mcq';
+  question: string;
+  options: string[];
+  correctAnswer: number;
+};
+
+type LongQuestion = {
+  type: 'long';
+  question: string;
+  answer: string;
+  marks: number;
+};
+
+type Question = MCQQuestion | LongQuestion;
+
+// Define the exam data type
+type ExamData = {
+  title: string;
+  description: string;
+  duration: number;
+  date: string;
+  instructions: string;
+  questions: Question[];
+};
 
 const ExamCreator = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [examType, setExamType] = useState('draft'); // draft or publish
+  const [examType, setExamType] = useState<'draft' | 'published'>('draft');
   
-  const [examData, setExamData] = useState({
+  const [examData, setExamData] = useState<ExamData>({
     title: '',
     description: '',
     duration: 60,
@@ -33,8 +65,8 @@ const ExamCreator = () => {
     ]
   });
 
-  const addQuestion = (type) => {
-    const newQuestion = type === 'mcq' 
+  const addQuestion = (type: 'mcq' | 'long') => {
+    const newQuestion: Question = type === 'mcq' 
       ? { type: 'mcq', question: '', options: ['', '', '', ''], correctAnswer: 0 }
       : { type: 'long', question: '', answer: '', marks: 5 };
     
@@ -44,7 +76,7 @@ const ExamCreator = () => {
     });
   };
 
-  const removeQuestion = (index) => {
+  const removeQuestion = (index: number) => {
     const updatedQuestions = [...examData.questions];
     updatedQuestions.splice(index, 1);
     setExamData({
@@ -53,14 +85,25 @@ const ExamCreator = () => {
     });
   };
 
-  const updateQuestion = (index, field, value) => {
+  const updateQuestion = (index: number, field: string, value: any) => {
     const updatedQuestions = [...examData.questions];
     
     if (field === 'option') {
-      const [optionIndex, optionValue] = value;
-      updatedQuestions[index].options[optionIndex] = optionValue;
+      const [optionIndex, optionValue] = value as [number, string];
+      if (updatedQuestions[index].type === 'mcq') {
+        (updatedQuestions[index] as MCQQuestion).options[optionIndex] = optionValue;
+      }
     } else {
-      updatedQuestions[index][field] = value;
+      // Type checking and safely updating the specific field
+      if (field === 'marks' && updatedQuestions[index].type === 'long') {
+        (updatedQuestions[index] as LongQuestion).marks = value;
+      } else if (field === 'answer' && updatedQuestions[index].type === 'long') {
+        (updatedQuestions[index] as LongQuestion).answer = value;
+      } else if (field === 'correctAnswer' && updatedQuestions[index].type === 'mcq') {
+        (updatedQuestions[index] as MCQQuestion).correctAnswer = value;
+      } else if (field === 'question') {
+        updatedQuestions[index].question = value;
+      }
     }
     
     setExamData({
@@ -69,30 +112,52 @@ const ExamCreator = () => {
     });
   };
 
-  const handleExamDataChange = (field, value) => {
+  const handleExamDataChange = (field: keyof ExamData, value: any) => {
     setExamData({
       ...examData,
       [field]: value
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create an exam.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare exam data for Firestore
+      const examToSave = {
+        ...examData,
+        createdBy: user.id,
+        createdByName: user.name,
+        createdAt: new Date().toISOString(),
+        status: examType,
+        submissions: 0, // No submissions yet
+      };
+
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, "exams"), examToSave);
       
       toast({
-        title: examType === 'publish' ? "Exam Published" : "Draft Saved",
-        description: examType === 'publish' 
+        title: examType === 'published' ? "Exam Published" : "Draft Saved",
+        description: examType === 'published' 
           ? "Your exam has been published and can now be shared with students."
           : "Your exam draft has been saved successfully.",
       });
       
-      // Redirect would happen here in a real implementation
-    } catch (error) {
+      // Redirect to exams list
+      navigate('/dashboard/exams');
+    } catch (error: any) {
+      console.error("Error saving exam:", error);
       toast({
         title: "Error",
         description: "Failed to save exam. Please try again.",
@@ -256,13 +321,13 @@ const ExamCreator = () => {
                   {question.type === 'mcq' && (
                     <div className="space-y-3">
                       <Label>Answer Options</Label>
-                      {question.options.map((option, optIndex) => (
+                      {(question as MCQQuestion).options.map((option, optIndex) => (
                         <div key={optIndex} className="flex items-center space-x-2">
                           <input
                             type="radio"
                             id={`q${index}-opt${optIndex}`}
                             name={`q${index}-correct`}
-                            checked={question.correctAnswer === optIndex}
+                            checked={(question as MCQQuestion).correctAnswer === optIndex}
                             onChange={() => updateQuestion(index, 'correctAnswer', optIndex)}
                             className="h-4 w-4 text-primary"
                           />
@@ -288,7 +353,7 @@ const ExamCreator = () => {
                           id={`marks-${index}`}
                           type="number"
                           min={1}
-                          value={question.marks}
+                          value={(question as LongQuestion).marks}
                           onChange={(e) => updateQuestion(index, 'marks', Number(e.target.value))}
                           className="w-24"
                         />
@@ -297,7 +362,7 @@ const ExamCreator = () => {
                         <Label htmlFor={`sample-${index}`}>Sample Answer (Optional)</Label>
                         <Textarea 
                           id={`sample-${index}`}
-                          value={question.answer || ''}
+                          value={(question as LongQuestion).answer || ''}
                           onChange={(e) => updateQuestion(index, 'answer', e.target.value)}
                           placeholder="Enter a sample answer for your reference"
                           className="mt-1"
@@ -319,7 +384,7 @@ const ExamCreator = () => {
             variant="outline" 
             onClick={() => {
               setExamType('draft');
-              handleSubmit(new Event('click'));
+              handleSubmit(new Event('click') as any);
             }}
             disabled={isSubmitting}
           >
@@ -328,13 +393,13 @@ const ExamCreator = () => {
           </Button>
           <Button 
             type="submit"
-            onClick={() => setExamType('publish')}
+            onClick={() => setExamType('published')}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {examType === 'publish' ? 'Publishing...' : 'Saving...'}
+                {examType === 'published' ? 'Publishing...' : 'Saving...'}
               </>
             ) : (
               <>Publish Exam</>
