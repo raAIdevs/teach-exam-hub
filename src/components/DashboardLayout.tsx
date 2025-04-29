@@ -33,7 +33,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   ];
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    // Check if the current path starts with the menu item path
+    return location.pathname === path || 
+           (path !== '/dashboard' && location.pathname.startsWith(path));
   };
 
   const handleLogout = () => {
@@ -44,7 +46,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar for desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200">
+      <aside className="hidden md:flex flex-col w-64 bg-white backdrop-blur-sm bg-opacity-80 border-r border-gray-200">
         <div className="flex items-center justify-center h-16 border-b px-4">
           <Link to="/dashboard" className="flex items-center space-x-2">
             <Book className="h-6 w-6 text-primary" />
@@ -80,13 +82,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </div>
       </aside>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar overlay */}
       <div 
         className={`md:hidden fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity ${mobileSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMobileSidebarOpen(false)}
       ></div>
 
-      <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* Mobile sidebar */}
+      <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white backdrop-blur-sm bg-opacity-95 shadow-xl transform transition-transform ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between h-16 border-b px-4">
           <Link to="/dashboard" className="flex items-center space-x-2">
             <Book className="h-6 w-6 text-primary" />
@@ -128,7 +131,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between h-16 bg-white shadow-sm px-6">
+        <header className="flex items-center justify-between h-16 bg-white backdrop-blur-sm bg-opacity-80 shadow-sm px-6">
           <button 
             className="md:hidden text-gray-700 focus:outline-none"
             onClick={() => setMobileSidebarOpen(true)}
