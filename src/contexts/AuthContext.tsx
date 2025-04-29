@@ -117,7 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileComplete: true
       });
       
-      navigate('/dashboard');
+      // Instead of navigating directly to the dashboard, navigate to login page
+      navigate('/login');
     } catch (error: any) {
       console.error("Signup error:", error);
       throw new Error(error.message || "Failed to create account");

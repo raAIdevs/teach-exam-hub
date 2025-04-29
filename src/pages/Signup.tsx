@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Book, Loader2 } from 'lucide-react';
@@ -21,8 +22,9 @@ const Signup = () => {
     try {
       await signup(name, email, password, subject, institute);
       toast({
-        title: "Account created",
-        description: "Welcome to TeachExamHub!",
+        title: "Account created successfully",
+        description: "Please login with your new credentials.",
+        variant: "default",
       });
     } catch (error: any) {
       toast({
